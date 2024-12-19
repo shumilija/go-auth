@@ -65,7 +65,7 @@ func (s Jwt[T]) Signature(hash hash.Hash) (string, error) {
 }
 
 func Decode[T any](value string) (*T, error) {
-	afterDecoding, err := base64.URLEncoding.DecodeString(value)
+	afterDecoding, err := base64.RawStdEncoding.DecodeString(value)
 	if err != nil {
 		return nil, err
 	}
