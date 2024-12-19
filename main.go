@@ -2,19 +2,17 @@ package main
 
 import (
 	"fmt"
-	"goauth/api/errors"
-	"goauth/api/login"
-	"goauth/api/refresh"
+	"goauth/api"
 	"net/http"
 )
 
 func main() {
 	mux := http.NewServeMux()
 
-	mux.HandleFunc("/auth/login", login.Handle)
-	mux.HandleFunc("/auth/refresh", refresh.Handle)
+	mux.HandleFunc("/auth/login", api.HandleLogin)
+	mux.HandleFunc("/auth/refresh", api.HandleRefresh)
 
-	handler := errors.NewWrapper(mux)
+	handler := api.ErrorsHandler(mux)
 
 	fmt.Println("::: Сервер запущен по адресу http://localhost:8080")
 

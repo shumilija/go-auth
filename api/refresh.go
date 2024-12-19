@@ -1,16 +1,16 @@
-package refresh
+package api
 
 import (
 	"encoding/json"
 	"fmt"
-	"goauth/logics/refresh"
+	"goauth/logics"
 	"io"
 	"net/http"
 	"strings"
 )
 
 // Обработать HTTP запрос для обновления токенов пользователя.
-func Handle(w http.ResponseWriter, r *http.Request) {
+func HandleRefresh(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
 		w.WriteHeader(404)
 		return
@@ -19,7 +19,7 @@ func Handle(w http.ResponseWriter, r *http.Request) {
 	command := readBody(r)
 	command.UserAddress = strings.Split(r.RemoteAddr, ":")[0]
 
-	handler := refresh.CommandHandler{
+	handler := logics.RefreshCommandHandler{
 		Command: command,
 	}
 
@@ -33,7 +33,7 @@ func Handle(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprint(w, string(json))
 }
 
-func readBody(r *http.Request) *refresh.Command {
+func readBody(r *http.Request) *logics.RefreshCommand {
 	defer r.Body.Close()
 
 	bytes, err := io.ReadAll(r.Body)
@@ -41,7 +41,7 @@ func readBody(r *http.Request) *refresh.Command {
 		panic(err)
 	}
 
-	var command refresh.Command
+	var command logics.RefreshCommand
 	err = json.Unmarshal(bytes, &command)
 	if err != nil {
 		panic(err)

@@ -1,12 +1,11 @@
-package login
+package logics
 
 import (
 	"goauth/logics/services"
-	"goauth/logics/tokenCreation"
 )
 
 // Команда для аутентификации пользователя.
-type Command struct {
+type LoginCommand struct {
 	// Идентификатор пользователя, которому требуется выдать пару токенов.
 	UserId int32
 
@@ -15,7 +14,7 @@ type Command struct {
 }
 
 // Результат аутентификации пользователя.
-type Result struct {
+type LoginResult struct {
 	// ACCESS токен.
 	AccessToken string
 
@@ -24,16 +23,16 @@ type Result struct {
 }
 
 // Обработчик команды для аутентификации пользователя.
-type CommandHandler struct {
+type LoginCommandHandler struct {
 	// Обрабатываемая команда.
-	Command *Command
+	Command *LoginCommand
 
-	_tokensCreationHandler *tokenCreation.CommandHandler
-	_createdPairOfTokens   *tokenCreation.Result
+	_tokensCreationHandler *TokensCreationCommandHandler
+	_createdPairOfTokens   *TokensCreationResult
 }
 
 // Обработать команду для аутентификации пользователя.
-func (s *CommandHandler) Handle() *Result {
+func (s *LoginCommandHandler) Handle() *LoginResult {
 	s.panicIfUserDoesNotExist()
 
 	s.deletePreviousAuth()
@@ -43,22 +42,22 @@ func (s *CommandHandler) Handle() *Result {
 
 // 1-й уровень абстракции.
 
-func (s *CommandHandler) panicIfUserDoesNotExist() {
+func (s *LoginCommandHandler) panicIfUserDoesNotExist() {
 	_, err := services.UsersRepository().Get(s.Command.UserId)
 	if err != nil {
 		panic(err)
 	}
 }
 
-func (s *CommandHandler) deletePreviousAuth() {
+func (s *LoginCommandHandler) deletePreviousAuth() {
 	err := services.AuthsRepository().DeleteByUser(s.Command.UserId)
 	if err != nil {
 		panic(err)
 	}
 }
 
-func (s *CommandHandler) result() *Result {
-	return &Result{
+func (s *LoginCommandHandler) result() *LoginResult {
+	return &LoginResult{
 		AccessToken:  s.createdPairOfTokens().AccessToken,
 		RefreshToken: s.createdPairOfTokens().RefreshToken,
 	}
@@ -66,7 +65,7 @@ func (s *CommandHandler) result() *Result {
 
 // 2-й уровень абстракции.
 
-func (s *CommandHandler) createdPairOfTokens() *tokenCreation.Result {
+func (s *LoginCommandHandler) createdPairOfTokens() *TokensCreationResult {
 	if s._createdPairOfTokens == nil {
 		s._createdPairOfTokens = s.createPairOfTokens()
 	}
@@ -76,13 +75,13 @@ func (s *CommandHandler) createdPairOfTokens() *tokenCreation.Result {
 
 // 3-й уровень абстракции.
 
-func (s *CommandHandler) createPairOfTokens() *tokenCreation.Result {
+func (s *LoginCommandHandler) createPairOfTokens() *TokensCreationResult {
 	return s.tokenCreationHandler().Handle()
 }
 
 // 4-й уровень абстракции.
 
-func (s *CommandHandler) tokenCreationHandler() *tokenCreation.CommandHandler {
+func (s *LoginCommandHandler) tokenCreationHandler() *TokensCreationCommandHandler {
 	if s._tokensCreationHandler == nil {
 		s._tokensCreationHandler = s.createTokenCreationHandler()
 	}
@@ -92,9 +91,9 @@ func (s *CommandHandler) tokenCreationHandler() *tokenCreation.CommandHandler {
 
 // 5-й уровень абстракции.
 
-func (s *CommandHandler) createTokenCreationHandler() *tokenCreation.CommandHandler {
-	tokenCreationHandler := tokenCreation.CommandHandler{
-		Command: &tokenCreation.Command{
+func (s *LoginCommandHandler) createTokenCreationHandler() *TokensCreationCommandHandler {
+	tokenCreationHandler := TokensCreationCommandHandler{
+		Command: &TokensCreationCommand{
 			UserId:      s.Command.UserId,
 			UserAddress: s.Command.UserAddress,
 		},

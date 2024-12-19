@@ -1,4 +1,4 @@
-package errors
+package api
 
 import (
 	"fmt"
@@ -6,7 +6,7 @@ import (
 )
 
 // Создать обертку над обработчиком запросов для обработки исключений.
-func NewWrapper(next http.Handler) http.Handler {
+func ErrorsHandler(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		defer func() {
 			recovered := recover()

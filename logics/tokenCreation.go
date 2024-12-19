@@ -1,4 +1,4 @@
-package tokenCreation
+package logics
 
 import (
 	"goauth/data/auths"
@@ -10,10 +10,8 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-const maxBytesInValueForBcrypt = 72
-
 // Команда для создания пары токенов.
-type Command struct {
+type TokensCreationCommand struct {
 	// Идентификатор пользователя, которому требуется выдать пару токенов.
 	UserId int32
 
@@ -22,7 +20,7 @@ type Command struct {
 }
 
 // Результат создания пары токенов.
-type Result struct {
+type TokensCreationResult struct {
 	// ACCESS токен.
 	AccessToken string
 
@@ -31,9 +29,9 @@ type Result struct {
 }
 
 // Обработчик команды для создания пары токенов.
-type CommandHandler struct {
+type TokensCreationCommandHandler struct {
 	// Обрабатываемая команда.
-	Command *Command
+	Command *TokensCreationCommand
 
 	_createdAuth *auths.Auth
 
@@ -45,7 +43,7 @@ type CommandHandler struct {
 }
 
 // Обработать команду для создания пары токенов.
-func (s *CommandHandler) Handle() *Result {
+func (s *TokensCreationCommandHandler) Handle() *TokensCreationResult {
 	s.saveRefreshTokenHash()
 
 	return s.result()
@@ -53,15 +51,15 @@ func (s *CommandHandler) Handle() *Result {
 
 // 1-й уровень абстракции.
 
-func (s *CommandHandler) saveRefreshTokenHash() {
+func (s *TokensCreationCommandHandler) saveRefreshTokenHash() {
 	createdAuth := *s.createdAuth()
 	createdAuth.RefreshTokenHash = string(s.createRefreshTokenHash())
 
 	services.AuthsRepository().Update(createdAuth)
 }
 
-func (s *CommandHandler) result() *Result {
-	return &Result{
+func (s *TokensCreationCommandHandler) result() *TokensCreationResult {
+	return &TokensCreationResult{
 		AccessToken:  *s.encodedAccessToken(),
 		RefreshToken: *s.encodedRefreshToken(),
 	}
@@ -69,7 +67,7 @@ func (s *CommandHandler) result() *Result {
 
 // 2-й уровень абстракции.
 
-func (s *CommandHandler) createdAuth() *auths.Auth {
+func (s *TokensCreationCommandHandler) createdAuth() *auths.Auth {
 	if s._createdAuth == nil {
 		s._createdAuth = s.createAuth()
 	}
@@ -77,7 +75,7 @@ func (s *CommandHandler) createdAuth() *auths.Auth {
 	return s._createdAuth
 }
 
-func (s *CommandHandler) createRefreshTokenHash() []byte {
+func (s *TokensCreationCommandHandler) createRefreshTokenHash() []byte {
 	refreshTokenHash, err := bcrypt.GenerateFromPassword(s.encodedRefreshTokenBytesForBcrypt(), bcrypt.DefaultCost)
 	if err != nil {
 		panic(err)
@@ -86,7 +84,7 @@ func (s *CommandHandler) createRefreshTokenHash() []byte {
 	return refreshTokenHash
 }
 
-func (s *CommandHandler) encodedAccessToken() *string {
+func (s *TokensCreationCommandHandler) encodedAccessToken() *string {
 	if s._encodedAccessToken == nil {
 		s._encodedAccessToken = s.encodeAccessToken()
 	}
@@ -96,7 +94,7 @@ func (s *CommandHandler) encodedAccessToken() *string {
 
 // 3-й уровень абстракции.
 
-func (s *CommandHandler) createAuth() *auths.Auth {
+func (s *TokensCreationCommandHandler) createAuth() *auths.Auth {
 	token, err := services.AuthsRepository().Create(auths.Auth{
 		UserId: s.Command.UserId,
 	})
@@ -107,11 +105,11 @@ func (s *CommandHandler) createAuth() *auths.Auth {
 	return token
 }
 
-func (s *CommandHandler) encodedRefreshTokenBytesForBcrypt() []byte {
-	return []byte(*s.encodedRefreshToken())[:maxBytesInValueForBcrypt]
+func (s *TokensCreationCommandHandler) encodedRefreshTokenBytesForBcrypt() []byte {
+	return []byte(*s.encodedRefreshToken())[:MAX_BYTES_IN_VALUE_FOR_BCRYPT]
 }
 
-func (s *CommandHandler) encodeAccessToken() *string {
+func (s *TokensCreationCommandHandler) encodeAccessToken() *string {
 	encodedAccessToken, err := services.AccessTokenIssuer().Encode(*s.accessToken())
 	if err != nil {
 		panic(err)
@@ -122,7 +120,7 @@ func (s *CommandHandler) encodeAccessToken() *string {
 
 // 4-й уровень абстракции.
 
-func (s *CommandHandler) encodedRefreshToken() *string {
+func (s *TokensCreationCommandHandler) encodedRefreshToken() *string {
 	if s._encodedRefreshToken == nil {
 		s._encodedRefreshToken = s.encodeRefreshToken()
 	}
@@ -130,7 +128,7 @@ func (s *CommandHandler) encodedRefreshToken() *string {
 	return s._encodedRefreshToken
 }
 
-func (s *CommandHandler) accessToken() *jwt.Jwt[access.AccessTokenPayload] {
+func (s *TokensCreationCommandHandler) accessToken() *jwt.Jwt[access.AccessTokenPayload] {
 	if s._accessToken == nil {
 		s._accessToken = s.createAccessToken()
 	}
@@ -140,7 +138,7 @@ func (s *CommandHandler) accessToken() *jwt.Jwt[access.AccessTokenPayload] {
 
 // 5-й уровень абстракции.
 
-func (s *CommandHandler) encodeRefreshToken() *string {
+func (s *TokensCreationCommandHandler) encodeRefreshToken() *string {
 	encodedRefreshToken, err := services.RefreshTokenIssuer().Encode(*s.refreshToken())
 	if err != nil {
 		panic(err)
@@ -149,7 +147,7 @@ func (s *CommandHandler) encodeRefreshToken() *string {
 	return &encodedRefreshToken
 }
 
-func (s *CommandHandler) createAccessToken() *jwt.Jwt[access.AccessTokenPayload] {
+func (s *TokensCreationCommandHandler) createAccessToken() *jwt.Jwt[access.AccessTokenPayload] {
 	token := services.AccessTokenIssuer().New(s.Command.UserId, s.Command.UserAddress, s.createdAuth().Id)
 
 	return &token
@@ -157,7 +155,7 @@ func (s *CommandHandler) createAccessToken() *jwt.Jwt[access.AccessTokenPayload]
 
 // 6-й уровень абстракции.
 
-func (s *CommandHandler) refreshToken() *jwt.Jwt[refresh.RefreshTokenPayload] {
+func (s *TokensCreationCommandHandler) refreshToken() *jwt.Jwt[refresh.RefreshTokenPayload] {
 	if s._refreshToken == nil {
 		s._refreshToken = s.createRefreshToken()
 	}
@@ -167,7 +165,7 @@ func (s *CommandHandler) refreshToken() *jwt.Jwt[refresh.RefreshTokenPayload] {
 
 // 7-й уровень абстракции.
 
-func (s *CommandHandler) createRefreshToken() *jwt.Jwt[refresh.RefreshTokenPayload] {
+func (s *TokensCreationCommandHandler) createRefreshToken() *jwt.Jwt[refresh.RefreshTokenPayload] {
 	token := services.RefreshTokenIssuer().New(s.createdAuth().Id)
 
 	return &token

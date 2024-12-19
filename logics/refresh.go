@@ -1,12 +1,10 @@
-package refresh
+package logics
 
 import (
 	"fmt"
 	"goauth/data/auths"
 	"goauth/data/users"
-	"goauth/logics/notification"
 	"goauth/logics/services"
-	"goauth/logics/tokenCreation"
 	"goauth/tokens/access"
 	"goauth/tokens/jwt"
 	"goauth/tokens/refresh"
@@ -15,10 +13,8 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-const maxBytesInValueForBcrypt = 72
-
 // Команда на обновление аутентификации пользователя.
-type Command struct {
+type RefreshCommand struct {
 	// ACCESS токен пользователя.
 	AccessToken string
 
@@ -30,7 +26,7 @@ type Command struct {
 }
 
 // Результат обновления аутентификации пользователя.
-type Result struct {
+type RefreshResult struct {
 	// Новый ACCESS токен пользователя.
 	AccessToken string
 
@@ -39,23 +35,23 @@ type Result struct {
 }
 
 // Обработчик команды на обновление аутентификации пользователя.
-type CommandHandler struct {
+type RefreshCommandHandler struct {
 	// Обрабатываемая команда.
-	Command *Command
+	Command *RefreshCommand
 
 	_previousAuth *auths.Auth
 
 	_previousAccessToken  *jwt.Jwt[access.AccessTokenPayload]
 	_previousRefreshToken *jwt.Jwt[refresh.RefreshTokenPayload]
 
-	_tokensCreationHandler *tokenCreation.CommandHandler
-	_createdPairOfTokens   *tokenCreation.Result
+	_tokensCreationHandler *TokensCreationCommandHandler
+	_createdPairOfTokens   *TokensCreationResult
 
 	_user *users.User
 }
 
 // Обработать команду на обновление аутентификации пользователя.
-func (s *CommandHandler) Handle() *Result {
+func (s *RefreshCommandHandler) Handle() *RefreshResult {
 	s.validateCommand()
 
 	s.deletePreviousAuth()
@@ -67,27 +63,27 @@ func (s *CommandHandler) Handle() *Result {
 
 // 1-й уровень абстракции.
 
-func (s *CommandHandler) validateCommand() {
+func (s *RefreshCommandHandler) validateCommand() {
 	s.panicIfTokensHaveDifferentIds()
 	s.panicIfRefreshTokenHasExpired()
 	s.validateRefreshTokenBySavedHash()
 }
 
-func (s *CommandHandler) deletePreviousAuth() {
+func (s *RefreshCommandHandler) deletePreviousAuth() {
 	err := services.AuthsRepository().Delete(s.previousAuth().Id)
 	if err != nil {
 		panic(err)
 	}
 }
 
-func (s *CommandHandler) notifyUserIfAddressIsDifferent() {
+func (s *RefreshCommandHandler) notifyUserIfAddressIsDifferent() {
 	if s.previousAccessToken().Payload.Address != s.Command.UserAddress {
 		s.createNotificationCommandHandler().Handle()
 	}
 }
 
-func (s *CommandHandler) result() *Result {
-	return &Result{
+func (s *RefreshCommandHandler) result() *RefreshResult {
+	return &RefreshResult{
 		AccessToken:  s.createdPairOfTokens().AccessToken,
 		RefreshToken: s.createdPairOfTokens().RefreshToken,
 	}
@@ -95,26 +91,26 @@ func (s *CommandHandler) result() *Result {
 
 // 2-й уровень абстракции.
 
-func (s *CommandHandler) panicIfTokensHaveDifferentIds() {
+func (s *RefreshCommandHandler) panicIfTokensHaveDifferentIds() {
 	if s.previousAccessToken().Payload.Id != s.previousRefreshToken().Payload.Id {
 		panic(fmt.Errorf("tokens have different ids"))
 	}
 }
 
-func (s *CommandHandler) panicIfRefreshTokenHasExpired() {
+func (s *RefreshCommandHandler) panicIfRefreshTokenHasExpired() {
 	if s.previousRefreshToken().Payload.ExpirationTime < time.Now().Unix() {
 		panic(fmt.Errorf("REFRESH token has expired"))
 	}
 }
 
-func (s *CommandHandler) validateRefreshTokenBySavedHash() {
+func (s *RefreshCommandHandler) validateRefreshTokenBySavedHash() {
 	err := bcrypt.CompareHashAndPassword([]byte(s.previousAuth().RefreshTokenHash), s.encodedPreviousRefreshTokenBytesForBcrypt())
 	if err != nil {
 		panic(fmt.Errorf("REFRESH token does not match the token stored in the database"))
 	}
 }
 
-func (s *CommandHandler) previousAuth() *auths.Auth {
+func (s *RefreshCommandHandler) previousAuth() *auths.Auth {
 	if s._previousAuth == nil {
 		s._previousAuth = s.getPreviousAuth()
 	}
@@ -122,7 +118,7 @@ func (s *CommandHandler) previousAuth() *auths.Auth {
 	return s._previousAuth
 }
 
-func (s *CommandHandler) createdPairOfTokens() *tokenCreation.Result {
+func (s *RefreshCommandHandler) createdPairOfTokens() *TokensCreationResult {
 	if s._createdPairOfTokens == nil {
 		s._createdPairOfTokens = s.createPairOfTokens()
 	}
@@ -130,9 +126,9 @@ func (s *CommandHandler) createdPairOfTokens() *tokenCreation.Result {
 	return s._createdPairOfTokens
 }
 
-func (s *CommandHandler) createNotificationCommandHandler() *notification.CommandHandler {
-	return &notification.CommandHandler{
-		Command: &notification.Command{
+func (s *RefreshCommandHandler) createNotificationCommandHandler() *NotificationCommandHandler {
+	return &NotificationCommandHandler{
+		Command: &NotificationCommand{
 			ReceiverEmail:  s.user().Email,
 			MessageSubject: "(shumilija/goauth) WARNING",
 			MessageBody:    "Выполнена аутентификация по REFRESH токену. ID адрес: " + s.Command.UserAddress,
@@ -142,7 +138,7 @@ func (s *CommandHandler) createNotificationCommandHandler() *notification.Comman
 
 // 3-й уровень абстракции.
 
-func (s *CommandHandler) getPreviousAuth() *auths.Auth {
+func (s *RefreshCommandHandler) getPreviousAuth() *auths.Auth {
 	previousAuth, err := services.AuthsRepository().Get(s.previousRefreshToken().Payload.Id)
 	if err != nil {
 		panic(err)
@@ -151,7 +147,7 @@ func (s *CommandHandler) getPreviousAuth() *auths.Auth {
 	return previousAuth
 }
 
-func (s *CommandHandler) previousRefreshToken() *jwt.Jwt[refresh.RefreshTokenPayload] {
+func (s *RefreshCommandHandler) previousRefreshToken() *jwt.Jwt[refresh.RefreshTokenPayload] {
 	if s._previousRefreshToken == nil {
 		s._previousRefreshToken = s.decodePreviousRefreshToken()
 	}
@@ -159,15 +155,15 @@ func (s *CommandHandler) previousRefreshToken() *jwt.Jwt[refresh.RefreshTokenPay
 	return s._previousRefreshToken
 }
 
-func (s *CommandHandler) encodedPreviousRefreshTokenBytesForBcrypt() []byte {
-	return []byte(s.Command.RefreshToken)[:maxBytesInValueForBcrypt]
+func (s *RefreshCommandHandler) encodedPreviousRefreshTokenBytesForBcrypt() []byte {
+	return []byte(s.Command.RefreshToken)[:MAX_BYTES_IN_VALUE_FOR_BCRYPT]
 }
 
-func (s *CommandHandler) createPairOfTokens() *tokenCreation.Result {
+func (s *RefreshCommandHandler) createPairOfTokens() *TokensCreationResult {
 	return s.tokenCreationHandler().Handle()
 }
 
-func (s *CommandHandler) user() *users.User {
+func (s *RefreshCommandHandler) user() *users.User {
 	if s._user == nil {
 		s._user = s.getUser()
 	}
@@ -177,7 +173,7 @@ func (s *CommandHandler) user() *users.User {
 
 // 4-й уровень абстракции.
 
-func (s *CommandHandler) decodePreviousRefreshToken() *jwt.Jwt[refresh.RefreshTokenPayload] {
+func (s *RefreshCommandHandler) decodePreviousRefreshToken() *jwt.Jwt[refresh.RefreshTokenPayload] {
 	decodedPreviousRefreshToken, err := services.RefreshTokenIssuer().Decode(s.Command.RefreshToken)
 	if err != nil {
 		panic(err)
@@ -186,7 +182,7 @@ func (s *CommandHandler) decodePreviousRefreshToken() *jwt.Jwt[refresh.RefreshTo
 	return decodedPreviousRefreshToken
 }
 
-func (s *CommandHandler) tokenCreationHandler() *tokenCreation.CommandHandler {
+func (s *RefreshCommandHandler) tokenCreationHandler() *TokensCreationCommandHandler {
 	if s._tokensCreationHandler == nil {
 		s._tokensCreationHandler = s.createTokenCreationHandler()
 	}
@@ -194,7 +190,7 @@ func (s *CommandHandler) tokenCreationHandler() *tokenCreation.CommandHandler {
 	return s._tokensCreationHandler
 }
 
-func (s *CommandHandler) getUser() *users.User {
+func (s *RefreshCommandHandler) getUser() *users.User {
 	user, err := services.UsersRepository().Get(s.previousAccessToken().Payload.Subject)
 	if err != nil {
 		panic(err)
@@ -205,9 +201,9 @@ func (s *CommandHandler) getUser() *users.User {
 
 // 5-й уровень абстракции.
 
-func (s *CommandHandler) createTokenCreationHandler() *tokenCreation.CommandHandler {
-	tokenCreationHandler := tokenCreation.CommandHandler{
-		Command: &tokenCreation.Command{
+func (s *RefreshCommandHandler) createTokenCreationHandler() *TokensCreationCommandHandler {
+	tokenCreationHandler := TokensCreationCommandHandler{
+		Command: &TokensCreationCommand{
 			UserId:      s.previousAccessToken().Payload.Subject,
 			UserAddress: s.Command.UserAddress,
 		},
@@ -218,7 +214,7 @@ func (s *CommandHandler) createTokenCreationHandler() *tokenCreation.CommandHand
 
 // 6-й уровень абстракции.
 
-func (s *CommandHandler) previousAccessToken() *jwt.Jwt[access.AccessTokenPayload] {
+func (s *RefreshCommandHandler) previousAccessToken() *jwt.Jwt[access.AccessTokenPayload] {
 	if s._previousAccessToken == nil {
 		s._previousAccessToken = s.decodePreviousAccessToken()
 	}
@@ -228,7 +224,7 @@ func (s *CommandHandler) previousAccessToken() *jwt.Jwt[access.AccessTokenPayloa
 
 // 7-й уровень абстракции.
 
-func (s *CommandHandler) decodePreviousAccessToken() *jwt.Jwt[access.AccessTokenPayload] {
+func (s *RefreshCommandHandler) decodePreviousAccessToken() *jwt.Jwt[access.AccessTokenPayload] {
 	decodedPreviousAccessToken, err := services.AccessTokenIssuer().Decode(s.Command.AccessToken)
 	if err != nil {
 		panic(err)

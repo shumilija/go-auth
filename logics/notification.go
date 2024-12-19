@@ -1,4 +1,4 @@
-package notification
+package logics
 
 import (
 	"crypto/tls"
@@ -9,7 +9,7 @@ import (
 )
 
 // Команда на отправку уведомления по электронной почте.
-type Command struct {
+type NotificationCommand struct {
 	// Адрес электронной почты получателя.
 	ReceiverEmail string
 
@@ -21,16 +21,16 @@ type Command struct {
 }
 
 // Обработчик команды на отправку уведомления по электронной почте.
-type CommandHandler struct {
+type NotificationCommandHandler struct {
 	// Обрабатываемая команда.
-	Command *Command
+	Command *NotificationCommand
 
 	_client *smtp.Client
 	_writer io.WriteCloser
 }
 
 // Обработать команду на отправку уведомления по электронной почте.
-func (s *CommandHandler) Handle() {
+func (s *NotificationCommandHandler) Handle() {
 	s.beginTransaction()
 
 	s.writeMessage()
@@ -40,7 +40,7 @@ func (s *CommandHandler) Handle() {
 
 // 1-й уровень абстракции.
 
-func (s *CommandHandler) beginTransaction() {
+func (s *NotificationCommandHandler) beginTransaction() {
 	var err error
 
 	err = s.client().Auth(s.auth())
@@ -59,25 +59,25 @@ func (s *CommandHandler) beginTransaction() {
 	}
 }
 
-func (s *CommandHandler) writeMessage() {
+func (s *NotificationCommandHandler) writeMessage() {
 	_, err := s.writer().Write([]byte(s.message()))
 	if err != nil {
 		panic(err)
 	}
 }
 
-func (s *CommandHandler) closeTransaction() {
+func (s *NotificationCommandHandler) closeTransaction() {
 	s.closeWriter()
 	s.client().Quit()
 }
 
 // 2-й уровень абстракции.
 
-func (s *CommandHandler) auth() smtp.Auth {
+func (s *NotificationCommandHandler) auth() smtp.Auth {
 	return smtp.PlainAuth("", secrets.SENDER_USER_NAME, secrets.SENDER_PASSWORD, secrets.SMTP_SERVER_HOST)
 }
 
-func (s *CommandHandler) message() string {
+func (s *NotificationCommandHandler) message() string {
 	return strings.Join([]string{
 		"From: " + secrets.SENDER_EMAIL,
 		"To: " + s.Command.ReceiverEmail,
@@ -86,7 +86,7 @@ func (s *CommandHandler) message() string {
 	}, "\r\n")
 }
 
-func (s *CommandHandler) closeWriter() {
+func (s *NotificationCommandHandler) closeWriter() {
 	err := s.writer().Close()
 	if err != nil {
 		panic(err)
@@ -95,7 +95,7 @@ func (s *CommandHandler) closeWriter() {
 
 // 3-й уровень абстракции.
 
-func (s *CommandHandler) writer() io.WriteCloser {
+func (s *NotificationCommandHandler) writer() io.WriteCloser {
 	if s._writer == nil {
 		s._writer = s.createWriter()
 	}
@@ -105,7 +105,7 @@ func (s *CommandHandler) writer() io.WriteCloser {
 
 // 4-й уровень абстракции.
 
-func (s *CommandHandler) createWriter() io.WriteCloser {
+func (s *NotificationCommandHandler) createWriter() io.WriteCloser {
 	writer, err := s.client().Data()
 	if err != nil {
 		panic(err)
@@ -116,7 +116,7 @@ func (s *CommandHandler) createWriter() io.WriteCloser {
 
 // 5-й уровень абстракции.
 
-func (s *CommandHandler) client() *smtp.Client {
+func (s *NotificationCommandHandler) client() *smtp.Client {
 	if s._client == nil {
 		s._client = s.createClient()
 	}
@@ -126,7 +126,7 @@ func (s *CommandHandler) client() *smtp.Client {
 
 // 6-й уровень абстракции.
 
-func (s *CommandHandler) createClient() *smtp.Client {
+func (s *NotificationCommandHandler) createClient() *smtp.Client {
 	client, err := smtp.NewClient(s.createConnection(), secrets.SMTP_SERVER_HOST)
 	if err != nil {
 		panic(err)
@@ -137,7 +137,7 @@ func (s *CommandHandler) createClient() *smtp.Client {
 
 // 7-й уровень абстракции.
 
-func (s *CommandHandler) createConnection() *tls.Conn {
+func (s *NotificationCommandHandler) createConnection() *tls.Conn {
 	connection, err := tls.Dial("tcp", secrets.SMTP_SERVER_ADDRESS, s.tlsConfig())
 	if err != nil {
 		panic(err)
@@ -148,7 +148,7 @@ func (s *CommandHandler) createConnection() *tls.Conn {
 
 // 8-й уровень абстракции.
 
-func (s *CommandHandler) tlsConfig() *tls.Config {
+func (s *NotificationCommandHandler) tlsConfig() *tls.Config {
 	return &tls.Config{
 		InsecureSkipVerify: true,
 		ServerName:         secrets.SMTP_SERVER_HOST,
