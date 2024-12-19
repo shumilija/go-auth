@@ -3,6 +3,8 @@ package refresh
 import (
 	"fmt"
 	"goauth/data/auths"
+	"goauth/data/users"
+	"goauth/logics/notification"
 	"goauth/logics/services"
 	"goauth/logics/tokenCreation"
 	"goauth/tokens/access"
@@ -48,6 +50,8 @@ type CommandHandler struct {
 
 	_tokensCreationHandler *tokenCreation.CommandHandler
 	_createdPairOfTokens   *tokenCreation.Result
+
+	_user *users.User
 }
 
 // Обработать команду на обновление аутентификации пользователя.
@@ -77,7 +81,9 @@ func (s *CommandHandler) deletePreviousAuth() {
 }
 
 func (s *CommandHandler) notifyUserIfAddressIsDifferent() {
-	// TODO
+	if s.previousAccessToken().Payload.Address != s.Command.UserAddress {
+		s.createNotificationCommandHandler().Handle()
+	}
 }
 
 func (s *CommandHandler) result() *Result {
@@ -124,6 +130,16 @@ func (s *CommandHandler) createdPairOfTokens() *tokenCreation.Result {
 	return s._createdPairOfTokens
 }
 
+func (s *CommandHandler) createNotificationCommandHandler() *notification.CommandHandler {
+	return &notification.CommandHandler{
+		Command: &notification.Command{
+			ReceiverEmail:  s.user().Email,
+			MessageSubject: "(shumilija/goauth) WARNING",
+			MessageBody:    "Выполнена аутентификация по REFRESH токену. ID адрес: " + s.Command.UserAddress,
+		},
+	}
+}
+
 // 3-й уровень абстракции.
 
 func (s *CommandHandler) getPreviousAuth() *auths.Auth {
@@ -151,6 +167,14 @@ func (s *CommandHandler) createPairOfTokens() *tokenCreation.Result {
 	return s.tokenCreationHandler().Handle()
 }
 
+func (s *CommandHandler) user() *users.User {
+	if s._user == nil {
+		s._user = s.getUser()
+	}
+
+	return s._user
+}
+
 // 4-й уровень абстракции.
 
 func (s *CommandHandler) decodePreviousRefreshToken() *jwt.Jwt[refresh.RefreshTokenPayload] {
@@ -168,6 +192,15 @@ func (s *CommandHandler) tokenCreationHandler() *tokenCreation.CommandHandler {
 	}
 
 	return s._tokensCreationHandler
+}
+
+func (s *CommandHandler) getUser() *users.User {
+	user, err := services.UsersRepository().Get(s.previousAccessToken().Payload.Subject)
+	if err != nil {
+		panic(err)
+	}
+
+	return user
 }
 
 // 5-й уровень абстракции.
