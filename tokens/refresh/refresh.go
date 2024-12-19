@@ -23,6 +23,9 @@ type RefreshTokenPayload struct {
 
 	// Идентификатор токена.
 	Id int32 `json:"jti"`
+
+	// IP адрес пользователя, под которым тот получил токен.
+	UserIp string `json:"uip"`
 }
 
 // Вспомогательное средство для издания JWT токенов обновления.
@@ -38,7 +41,7 @@ type Issuer struct {
 }
 
 // Выдать новый токен с указанными параметрами.
-func (s Issuer) New(tokenId int32) jwt.Jwt[RefreshTokenPayload] {
+func (s Issuer) New(userIp string, tokenId int32) jwt.Jwt[RefreshTokenPayload] {
 	now := time.Now()
 
 	result := jwt.Jwt[RefreshTokenPayload]{
@@ -51,6 +54,7 @@ func (s Issuer) New(tokenId int32) jwt.Jwt[RefreshTokenPayload] {
 			IssuedAt:       now.Unix(),
 			ExpirationTime: now.Add(time.Duration(s.TokenLifeTimeInHours) * time.Hour).Unix(),
 			Id:             tokenId,
+			UserIp:         userIp,
 		},
 	}
 

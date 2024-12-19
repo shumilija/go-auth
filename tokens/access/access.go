@@ -15,9 +15,6 @@ type AccessTokenPayload struct {
 	// Идентификатор пользователя, которому был выдан токен.
 	Subject int32 `json:"sub"`
 
-	// IP адрес пользователя, которому был выдан токен.
-	Address string `json:"address"`
-
 	// Имя издателя токена.
 	Issuer string `json:"iss"`
 
@@ -44,7 +41,7 @@ type Issuer struct {
 }
 
 // Выдать новый токен с указанными параметрами.
-func (s Issuer) New(userId int32, userAddress string, tokenId int32) jwt.Jwt[AccessTokenPayload] {
+func (s Issuer) New(userId int32, tokenId int32) jwt.Jwt[AccessTokenPayload] {
 	now := time.Now()
 
 	result := jwt.Jwt[AccessTokenPayload]{
@@ -57,7 +54,6 @@ func (s Issuer) New(userId int32, userAddress string, tokenId int32) jwt.Jwt[Acc
 			IssuedAt:       now.Unix(),
 			ExpirationTime: now.Add(time.Duration(s.TokenLifeTimeInMinutes) * time.Minute).Unix(),
 			Subject:        userId,
-			Address:        userAddress,
 			Id:             tokenId,
 		},
 	}

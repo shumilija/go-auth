@@ -21,11 +21,11 @@ func HandleLogin(w http.ResponseWriter, r *http.Request) {
 		panic(err)
 	}
 
-	userAddress := strings.Split(r.RemoteAddr, ":")[0]
+	userIp := strings.Split(r.RemoteAddr, ":")[0]
 
 	command := logics.LoginCommand{
-		UserId:      int32(userId),
-		UserAddress: userAddress,
+		UserId: int32(userId),
+		UserIp: userIp,
 	}
 
 	handler := logics.LoginCommandHandler{

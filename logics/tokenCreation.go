@@ -16,7 +16,7 @@ type TokensCreationCommand struct {
 	UserId int32
 
 	// IP адрес пользователя.
-	UserAddress string
+	UserIp string
 }
 
 // Результат создания пары токенов.
@@ -148,7 +148,7 @@ func (s *TokensCreationCommandHandler) encodeRefreshToken() *string {
 }
 
 func (s *TokensCreationCommandHandler) createAccessToken() *jwt.Jwt[access.AccessTokenPayload] {
-	token := services.AccessTokenIssuer().New(s.Command.UserId, s.Command.UserAddress, s.createdAuth().Id)
+	token := services.AccessTokenIssuer().New(s.Command.UserId, s.createdAuth().Id)
 
 	return &token
 }
@@ -166,7 +166,7 @@ func (s *TokensCreationCommandHandler) refreshToken() *jwt.Jwt[refresh.RefreshTo
 // 7-й уровень абстракции.
 
 func (s *TokensCreationCommandHandler) createRefreshToken() *jwt.Jwt[refresh.RefreshTokenPayload] {
-	token := services.RefreshTokenIssuer().New(s.createdAuth().Id)
+	token := services.RefreshTokenIssuer().New(s.Command.UserIp, s.createdAuth().Id)
 
 	return &token
 }

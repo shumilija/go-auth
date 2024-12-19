@@ -10,7 +10,7 @@ type LoginCommand struct {
 	UserId int32
 
 	// IP адрес пользователя.
-	UserAddress string
+	UserIp string
 }
 
 // Результат аутентификации пользователя.
@@ -94,8 +94,8 @@ func (s *LoginCommandHandler) tokenCreationHandler() *TokensCreationCommandHandl
 func (s *LoginCommandHandler) createTokenCreationHandler() *TokensCreationCommandHandler {
 	tokenCreationHandler := TokensCreationCommandHandler{
 		Command: &TokensCreationCommand{
-			UserId:      s.Command.UserId,
-			UserAddress: s.Command.UserAddress,
+			UserId: s.Command.UserId,
+			UserIp: s.Command.UserIp,
 		},
 	}
 

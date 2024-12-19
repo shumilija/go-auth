@@ -17,7 +17,7 @@ func HandleRefresh(w http.ResponseWriter, r *http.Request) {
 	}
 
 	command := readBody(r)
-	command.UserAddress = strings.Split(r.RemoteAddr, ":")[0]
+	command.UserIp = strings.Split(r.RemoteAddr, ":")[0]
 
 	handler := logics.RefreshCommandHandler{
 		Command: command,

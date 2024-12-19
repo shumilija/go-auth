@@ -22,7 +22,7 @@ type RefreshCommand struct {
 	RefreshToken string
 
 	// IP адрес пользователя.
-	UserAddress string
+	UserIp string
 }
 
 // Результат обновления аутентификации пользователя.
@@ -77,7 +77,7 @@ func (s *RefreshCommandHandler) deletePreviousAuth() {
 }
 
 func (s *RefreshCommandHandler) notifyUserIfAddressIsDifferent() {
-	if s.previousAccessToken().Payload.Address != s.Command.UserAddress {
+	if s.previousRefreshToken().Payload.UserIp != s.Command.UserIp {
 		s.createNotificationCommandHandler().Handle()
 	}
 }
@@ -131,7 +131,7 @@ func (s *RefreshCommandHandler) createNotificationCommandHandler() *Notification
 		Command: &NotificationCommand{
 			ReceiverEmail:  s.user().Email,
 			MessageSubject: "(shumilija/goauth) WARNING",
-			MessageBody:    "Выполнена аутентификация по REFRESH токену. ID адрес: " + s.Command.UserAddress,
+			MessageBody:    "Выполнена аутентификация по REFRESH токену. ID адрес: " + s.Command.UserIp,
 		},
 	}
 }
@@ -204,8 +204,8 @@ func (s *RefreshCommandHandler) getUser() *users.User {
 func (s *RefreshCommandHandler) createTokenCreationHandler() *TokensCreationCommandHandler {
 	tokenCreationHandler := TokensCreationCommandHandler{
 		Command: &TokensCreationCommand{
-			UserId:      s.previousAccessToken().Payload.Subject,
-			UserAddress: s.Command.UserAddress,
+			UserId: s.previousAccessToken().Payload.Subject,
+			UserIp: s.Command.UserIp,
 		},
 	}
 
