@@ -4,6 +4,7 @@ import (
 	"goauth/data"
 	"goauth/data/auths"
 	"goauth/data/users"
+	"goauth/secrets"
 	"goauth/tokens/access"
 	"goauth/tokens/refresh"
 )
@@ -11,8 +12,8 @@ import (
 // Настроенный для приложения издатель ACCESS токенов.
 func AccessTokenIssuer() access.Issuer {
 	return access.Issuer{
-		Name:                   "shumilija/goauth",
-		Key:                    "e14kHjK2Qn_o",
+		Name:                   secrets.TOKEN_ISSUER_NAME,
+		Key:                    secrets.ACCESS_TOKEN_KEY,
 		TokenLifeTimeInMinutes: 15,
 	}
 }
@@ -20,8 +21,8 @@ func AccessTokenIssuer() access.Issuer {
 // Настроенный для приложения издатель REFRESH токенов.
 func RefreshTokenIssuer() refresh.Issuer {
 	return refresh.Issuer{
-		Name:                 "shumilija/goauth",
-		Key:                  "AvR-HIA5CaUn",
+		Name:                 secrets.TOKEN_ISSUER_NAME,
+		Key:                  secrets.REFRESH_TOKEN_KEY,
 		TokenLifeTimeInHours: 24,
 	}
 }
@@ -43,8 +44,8 @@ func AuthsRepository() auths.Repository {
 // Настроенный для приложения контекст подключения к БД.
 func Context() data.Context {
 	return data.Context{
-		User:     "postgres",
-		Password: "admin",
-		DbName:   "AUTH",
+		User:     secrets.DB_USER_NAME,
+		Password: secrets.DB_USER_PASSWORD,
+		DbName:   secrets.DB_NAME,
 	}
 }

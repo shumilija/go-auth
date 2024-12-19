@@ -101,3 +101,23 @@ CREATE TABLE AUTHS (
     REFRESH_TOKEN_HASH CHARACTER VARYING(100) -- BCRYPT хэш от REFRESH токена.
 )
 ```
+
+## SECRETS
+
+Для корректной работы приложения требуется пакет `secrets`, содержащий следующие константы
+
+```go
+const SENDER_EMAIL = "" // Адрес электронной почты отправителя уведомлений.
+const SENDER_USER_NAME = "" // Имя пользователя отправителя для аутентификации на SMTP сервере.
+const SENDER_PASSWORD = "" // Пароль отправителя для аутентификации на SMTP сервере.
+const SMTP_SERVER_HOST = "" // IP адрес SMTP сервера.
+const SMTP_SERVER_ADDRESS = "" // Адрес с портом SMTP сервера.
+
+const TOKEN_ISSUER_NAME = "" // Имя издателя токенов.
+const ACCESS_TOKEN_KEY = "" // Ключ для ACCESS токенов.
+const REFRESH_TOKEN_KEY = "" // Ключ для REFRESH токенов.
+
+const DB_NAME = "" // Название БД, к которой осуществляется подключение.
+const DB_USER_NAME = "" // Имя пользователя аутентификации в БД.
+const DB_USER_PASSWORD = "" // Пароль для аутентификации в БД.
+```
